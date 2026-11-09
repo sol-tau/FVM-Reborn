@@ -66,8 +66,8 @@ function MapDownloadManager() constructor {
     /// @param {String} _title
     /// @returns {Bool}
     static is_downloaded = function(_title) {
-        return native_folder_exists(self.get_download_folder(_title)) == 1
-            || native_folder_exists(self.get_working_download_folder(_title)) == 1
+        return global.native_util.folder_exists(self.get_download_folder(_title)) == 1
+            || global.native_util.folder_exists(self.get_working_download_folder(_title)) == 1
     }
 
     /// @param {String} _id
@@ -401,12 +401,12 @@ function MapDownloadManager() constructor {
     static delete_download = function(_title) {
         var _code = 0
         var _folder = self.get_download_folder(_title)
-        if (native_folder_exists(_folder) == 1) {
-            _code = native_delete_folder(_folder)
+        if (global.native_util.folder_exists(_folder) == 1) {
+            _code = global.native_util.delete_folder(_folder)
         }
         var _working = self.get_working_download_folder(_title)
-        if (native_folder_exists(_working) == 1) {
-            var _working_code = native_delete_folder(_working)
+        if (global.native_util.folder_exists(_working) == 1) {
+            var _working_code = global.native_util.delete_folder(_working)
             if (_code == 0) {
                 _code = _working_code
             }
@@ -421,7 +421,7 @@ function MapDownloadManager() constructor {
         var _zip = global.native_util.to_native_absolute(_zip_path)
         var _dest = self.get_download_folder(_title)
         show_debug_message("[OnlineMap] unzip " + _zip + " -> " + _dest)
-        return native_unzip_map_file(_zip, _dest)
+        return global.native_util.unzip_map_file(_zip, _dest)
     }
 
     static dispose = function() {

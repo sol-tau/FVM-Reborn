@@ -57,8 +57,11 @@ global.laboratory_manager.init()
 global.gui_stack = new GuiStack()
 global.native_util = new NativeUtil()
 
-init_native_log()
-move_files()
+// native 日志要靠 Windows dll；旧存档目录只在 Windows 版出现过，其他平台都跳过
+if (kHasWindowsNative) {
+    init_native_log()
+    move_files()
+}
 
 // 初始化全局键位映射
 global.keybind_map = ds_map_create();
@@ -203,7 +206,7 @@ global.sound_volume_before_mute = global.sound_volume > 0 ? global.sound_volume 
 show_debug_message(working_directory)
 
 // 屏蔽输入法（IME）：游戏内全程中文候选框不弹出
-if (global.ime_block && native_disable_ime != undefined) {
+if (kHasWindowsNative && global.ime_block && native_disable_ime != undefined) {
     native_disable_ime(window_handle());
 }
 
