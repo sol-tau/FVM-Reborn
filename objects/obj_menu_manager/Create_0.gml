@@ -80,25 +80,21 @@ function pre_load_texture() {
 	obj_player_info_ui.menu_type = 4
 	obj_world_map_button.world_map = 2
 	
-    if (self.animating) {
-        var _target = self.texture_loaded;
-        self.display_progress = lerp(self.display_progress, _target, 0.1);
-
-        if (abs(self.display_progress - _target) < 0.01) {
-            self.display_progress = _target;
-            self.animating = false;
-            
-            if (self.texture_loaded >= self.texture_count) {
-                after_texture_load();
-            }
-        }
-        return;
-    }
+    // 进度条只追着已加载数走，不挡下一组加载：每帧加载一组，中间照常画一帧
+    self.display_progress = lerp(self.display_progress, self.texture_loaded, 0.3);
 
     if (self.texture_loaded < self.texture_count) {
         texture_prefetch(self.texture_to_load[self.texture_loaded]);
         self.texture_loaded += 1;
         self.animating = true;
+        return;
+    }
+
+    // 全部加载完，等进度条追满再收尾
+    if (abs(self.display_progress - self.texture_count) < 0.01) {
+        self.display_progress = self.texture_count;
+        self.animating = false;
+        after_texture_load();
     }
 }
 
