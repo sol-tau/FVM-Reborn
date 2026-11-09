@@ -38,7 +38,9 @@ function FileUtil() constructor {
         if (!directory_exists(_path)) return _files;
 
         var _temp_list = [];
-        var _item = file_find_first(_path + "*.*", fa_directory | fa_archive | fa_readonly);
+        // Windows 上 "*.*" 匹配所有名字；其他平台只匹配带点号的名字，会漏掉 download 这类文件夹
+        var _mask = (os_type == os_windows) ? "*.*" : "*";
+        var _item = file_find_first(_path + _mask, fa_directory | fa_archive | fa_readonly);
         
         while (_item != "") {
             if (_item != "." && _item != "..") {

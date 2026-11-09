@@ -98,7 +98,11 @@ function NativeUtil() constructor {
             return native_unzip_map_file(_zip_path, _dest)
         }
         // zip_unzip 只认 zip；Windows 版用 7z.dll，还能解 7z / rar
-        var _count = zip_unzip(self.to_posix_path(_zip_path), self.to_posix_path(_dest) + "/")
+        _zip_path = self.to_posix_path(_zip_path)
+        if (!self.zip_names_are_utf8(_zip_path)) {
+            return kNativeErrExtractFailed
+        }
+        var _count = zip_unzip(_zip_path, self.to_posix_path(_dest) + "/")
         return _count > 0 ? 0 : kNativeErrExtractFailed
     }
 
@@ -213,6 +217,81 @@ function NativeUtil() constructor {
             }
         }
         return 0
+    }
+
+    /// @description Mac 版 zip_unzip 遇到不是 UTF-8 的文件名（比如国内压缩软件常用的 GBK）会让游戏直接崩溃，
+    ///              所以解压前先读 zip 末尾的文件目录，逐个检查文件名。读不懂的 zip 也按失败处理。
+    /// @param {String} _zip_path
+    /// @returns {Bool}
+    static zip_names_are_utf8 = function(_zip_path) {
+        var _buf = buffer_load(_zip_path)
+        if (!buffer_exists(_buf)) {
+            return false
+        }
+        var _size = buffer_get_size(_buf)
+        // 结尾记录（签名 0x06054b50）固定 22 字节，后面最多跟 65535 字节注释
+        var _eocd = -1
+        for (var p = _size - 22; p >= max(0, _size - 22 - 65535); p--) {
+            if (buffer_peek(_buf, p, buffer_u32) == 0x06054b50) {
+                _eocd = p
+                break
+            }
+        }
+        var _ok = _eocd >= 0
+        if (_ok) {
+            var _count = buffer_peek(_buf, _eocd + 10, buffer_u16)
+            var _pos = buffer_peek(_buf, _eocd + 16, buffer_u32)
+            for (var i = 0; i < _count; i++) {
+                // 每条目录记录（签名 0x02014b50）前 46 字节是固定字段，文件名紧跟其后
+                if (_pos + 46 > _size || buffer_peek(_buf, _pos, buffer_u32) != 0x02014b50) {
+                    _ok = false
+                    break
+                }
+                var _name_len = buffer_peek(_buf, _pos + 28, buffer_u16)
+                var _extra_len = buffer_peek(_buf, _pos + 30, buffer_u16)
+                var _comment_len = buffer_peek(_buf, _pos + 32, buffer_u16)
+                if (_pos + 46 + _name_len > _size || !self.bytes_are_utf8(_buf, _pos + 46, _name_len)) {
+                    _ok = false
+                    break
+                }
+                _pos += 46 + _name_len + _extra_len + _comment_len
+            }
+        }
+        buffer_delete(_buf)
+        return _ok
+    }
+
+    /// @param {Id.Buffer} _buf
+    /// @param {Real} _start
+    /// @param {Real} _len
+    /// @returns {Bool}
+    static bytes_are_utf8 = function(_buf, _start, _len) {
+        var _i = 0
+        while (_i < _len) {
+            var _b = buffer_peek(_buf, _start + _i, buffer_u8)
+            var _follow
+            if (_b < 0x80) {
+                _follow = 0
+            } else if (_b >= 0xC2 && _b <= 0xDF) {
+                _follow = 1
+            } else if (_b >= 0xE0 && _b <= 0xEF) {
+                _follow = 2
+            } else if (_b >= 0xF0 && _b <= 0xF4) {
+                _follow = 3
+            } else {
+                return false
+            }
+            if (_i + _follow >= _len) {
+                return false
+            }
+            for (var k = 1; k <= _follow; k++) {
+                if ((buffer_peek(_buf, _start + _i + k, buffer_u8) & 0xC0) != 0x80) {
+                    return false
+                }
+            }
+            _i += _follow + 1
+        }
+        return true
     }
 
     /// @description 按原样写入 UTF-8 文本，不追加结尾的 0 字节。
