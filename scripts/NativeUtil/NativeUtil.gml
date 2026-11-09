@@ -83,10 +83,16 @@ function NativeUtil() constructor {
             return native_open_folder(_path)
         }
         var _dir = self.to_posix_path(_path)
+        while (string_length(_dir) > 1 && string_ends_with(_dir, "/")) {
+            _dir = string_delete(_dir, string_length(_dir), 1)
+        }
         if (!directory_exists(_dir)) {
             return kNativeErrUnknownFailure
         }
-        url_open(self.path_to_file_url(_dir))
+        // Mac 上 url_open 不接受 file:// 地址，给本地文件夹路径也不会打开访达，
+        // 所以把路径复制给玩家，让他在访达里自己打开
+        clipboard_set_text(_dir)
+        show_message_async("文件夹路径已复制，可在访达里按 Shift+Command+G 粘贴打开：\n" + _dir)
         return 0
     }
 
@@ -339,28 +345,6 @@ function NativeUtil() constructor {
     /// @returns {String}
     static to_posix_path = function(_path) {
         return string_replace_all(string(_path), "\\", "/")
-    }
-
-    /// @description 绝对路径转 file:// URL，空格和中文按 UTF-8 字节做百分号编码。
-    /// @param {String} _path
-    /// @returns {String}
-    static path_to_file_url = function(_path) {
-        var _hex = "0123456789ABCDEF"
-        var _url = "file://"
-        var _len = string_byte_length(_path)
-        for (var i = 1; i <= _len; i++) {
-            var _b = string_byte_at(_path, i)
-            var _keep = (_b >= ord("0") && _b <= ord("9"))
-                || (_b >= ord("A") && _b <= ord("Z"))
-                || (_b >= ord("a") && _b <= ord("z"))
-                || _b == ord("-") || _b == ord(".") || _b == ord("_") || _b == ord("~") || _b == ord("/")
-            if (_keep) {
-                _url += chr(_b)
-            } else {
-                _url += "%" + string_char_at(_hex, (_b >> 4) + 1) + string_char_at(_hex, (_b & 15) + 1)
-            }
-        }
-        return _url
     }
 
 }
